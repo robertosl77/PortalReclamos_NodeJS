@@ -10,14 +10,18 @@ const app = express();
 // obtiene el puerto desde el archivo .env o usa el puerto 8080 por defecto
 const PORT = process.env.PORT || 8080;
 
-// Ruta por defecto
+// Middleware para servir archivos estáticos desde la carpeta "public"
+app.use(express.static('public'));
+
+// Ruta por defecto (redirección desde / a /PortalReclamos)
 app.get('/', (req, res) => {
-    res.redirect('/PortalReclamos');
+  console.log('Redirigiendo a /PortalReclamos');
+  res.redirect(301, '/PortalReclamos'); // Redirige con un código de estado 301
 });
 
 // Ruta principal
 app.get('/PortalReclamos', (req, res) => {
-    res.send('Bienvenido a Portal Reclamos');
+  res.sendFile('login.html', { root: 'public' }); // Retorna el archivo login.html
 });
 
 // escuchar el puerto
