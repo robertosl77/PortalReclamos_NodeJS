@@ -1,12 +1,20 @@
 import express from 'express';
-import path from 'path';
 import authRoutes from './routes/auth.routes.js';
 
 const app = express();
 
 // middlewares
-app.use(express.static('public'));
+// app.use(express.static('public'));
+app.use('/PortalReclamos', express.static('public'));
 app.use(express.urlencoded({ extended: true }));
+
+// Configuración de CORS
+app.get('/', (req, res) => {
+  res.redirect('/PortalReclamos/');
+});
+app.get('/PortalReclamos', (req, res) => {
+  res.redirect('/PortalReclamos/login.html');
+});
 
 // rutas base
 app.get('/', (_, res) => res.redirect(301, '/PortalReclamos'));

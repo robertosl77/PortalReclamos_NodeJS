@@ -1,16 +1,17 @@
-import { authLdapUser } from './ldapAuth.js'; // tu lógica LDAP
+import { authLdapUser } from './ldapAuth.js';
 
 export async function loginHandler(req, res) {
   const { floatingInput, floatingPassword } = req.body;
-  console.log(`Usuario: ${floatingInput}`);
-  console.log(`Contraseña: ${floatingPassword}`);
+  console.info(`Usuario: ${floatingInput}`);
+  console.info(`Contraseña: ${floatingPassword}`);
 
   try {
-    const isValid = await authLdapUser(floatingInput, floatingPassword);
-    console.log('Usuario autenticado:', isValid);   
-    // const isValid=true;
+    // const isValid = await authLdapUser(floatingInput, floatingPassword);
+    const isValid = true; // Simulación de autenticación LDAP exitosa
+
     if (isValid) {
-      return res.redirect('/reclamos.html');
+      // return res.redirect('/reclamos.html');
+      return res.redirect('/PortalReclamos/reclamos.html');
     }
     res.status(401).send('Credenciales inválidas');
   } catch (err) {
@@ -22,6 +23,7 @@ export async function loginHandler(req, res) {
     }
 
     // Error general
+    console.error('Error en autenticación:', err.message);
     return res.status(500).send('Error interno en autenticación.');
   }
 }

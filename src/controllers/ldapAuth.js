@@ -14,14 +14,15 @@ export async function authLdapUser(username, password) {
   let client;
 
   try {
+    console.info('1) Conectando a LDAP...');
     client = ldap.createClient({
       url: process.env.LDAP_URL,
       timeout: 5000,
       connectTimeout: 5000,
     });
-    console.log('Cliente LDAP creado:', client);
 
     // 💡 En lugar de throw directo, usamos una Promise que rechaza
+    console.info('2) Conectando al servidor LDAP...');
     await new Promise((resolve, reject) => {
       client.on('error', (err) => {
         console.error('❌ Error de conexión LDAP:', err.message);
@@ -39,50 +40,53 @@ export async function authLdapUser(username, password) {
     });
 
     // 🔍 Búsqueda del usuario
+    console.info('3) Buscando usuario en LDAP...');
     const searchOptions = {
       scope: 'sub',
       filter: process.env.LDAP_USER_FILTER.replace('{0}', username),
       attributes: ['dn', 'cn', 'mail'],
+
+      /**
+
+      * Scopes: 
+        * - base: solo el objeto base (el que se busca) 
+        * - one: solo los hijos directos del objeto base (no busca en subárboles)
+        * - sub: busca en el objeto base y en todos sus descendientes (subárboles)
+
+        * Filter:
+        * - (objectClass=*) → todos los objetos del directorio
+        * - (objectClass=user) → solo los objetos de tipo usuario
+        * - (objectClass=group) → solo los objetos de tipo grupo
+        * - (objectClass=organizationalUnit) → solo los objetos de tipo unidad organizativa
+
+      * Lista de Atributos que se pueden pedir al LDAP:
+
+            attributes: [
+                'dn',                   // Distinguished Name completo del objeto (identificador absoluto)
+                'cn',                   // Common Name (nombre del usuario o grupo)
+                'sAMAccountName',       // Nombre de cuenta (usado en login en AD)
+                'userPrincipalName',    // Nombre principal de usuario (como un email)
+                'mail',                 // Correo electrónico
+                'givenName',            // Nombre de pila (nombre)
+                'sn',                   // Apellido (surname)
+                'displayName',          // Nombre para mostrar (generalmente nombre completo)
+                'memberOf',             // Lista de grupos a los que pertenece el usuario
+                'telephoneNumber',      // Número de teléfono
+                'title',                // Cargo del usuario
+                'department',           // Departamento
+                'company',              // Empresa
+                'whenCreated',          // Fecha de creación del objeto en el directorio
+                'lastLogonTimestamp',   // Último login (solo en AD)
+            ]
+
+        * Comodin para traer todos los atributos: 
+
+            attributes: ['*']
+
+      */
     };
 
-    /**
-     * Scopes: 
-      * - base: solo el objeto base (el que se busca) 
-      * - one: solo los hijos directos del objeto base (no busca en subárboles)
-      * - sub: busca en el objeto base y en todos sus descendientes (subárboles)
-
-      * Filter:
-      * - (objectClass=*) → todos los objetos del directorio
-      * - (objectClass=user) → solo los objetos de tipo usuario
-      * - (objectClass=group) → solo los objetos de tipo grupo
-      * - (objectClass=organizationalUnit) → solo los objetos de tipo unidad organizativa
-
-    * Lista de Atributos que se pueden pedir al LDAP:
-
-          attributes: [
-              'dn',                   // Distinguished Name completo del objeto (identificador absoluto)
-              'cn',                   // Common Name (nombre del usuario o grupo)
-              'sAMAccountName',       // Nombre de cuenta (usado en login en AD)
-              'userPrincipalName',    // Nombre principal de usuario (como un email)
-              'mail',                 // Correo electrónico
-              'givenName',            // Nombre de pila (nombre)
-              'sn',                   // Apellido (surname)
-              'displayName',          // Nombre para mostrar (generalmente nombre completo)
-              'memberOf',             // Lista de grupos a los que pertenece el usuario
-              'telephoneNumber',      // Número de teléfono
-              'title',                // Cargo del usuario
-              'department',           // Departamento
-              'company',              // Empresa
-              'whenCreated',          // Fecha de creación del objeto en el directorio
-              'lastLogonTimestamp',   // Último login (solo en AD)
-          ]
-
-      * Comodin para traer todos los atributos: 
-
-          attributes: ['*']
-
-    */
-
+    console.info('4) Buscando usuario en LDAP...');
     const userDn = await new Promise((resolve, reject) => {
       let found = null;
 
@@ -101,6 +105,7 @@ export async function authLdapUser(username, password) {
     });
 
     // 🔑 Bind con las credenciales del usuario
+    console.info('5) Autenticando usuario...');
     await new Promise((resolve, reject) => {
       client.bind(userDn, password, (err) => {
         if (err) reject(new Error('Credenciales inválidas'));
@@ -108,10 +113,15 @@ export async function authLdapUser(username, password) {
       });
     });
 
+    console.info('6) Usuario autenticado correctamente!');
     client.unbind();
+
     return true;
+
   } catch (err) {
+    console.info('7) Error en autenticación LDAP:', err.message);
     if (client) client.unbind(); // siempre cerramos
+    // return false;
     throw new Error(`[authLdapUser] ${err.message || err}`);
   }
 }
