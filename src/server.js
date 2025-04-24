@@ -33,7 +33,14 @@ app.post('/api/login', (req, res) => {
   console.log(`Contraseña: ${floatingPassword}`);
 
   // Más adelante: validación contra LDAP
-  res.send('Login recibido');
+  // res.send('Login recibido');
+  if (floatingInput && floatingPassword) {
+    return res.redirect('/reclamos.html');
+  }
+
+  // Si algo falla
+  res.status(401).send('Credenciales inválidas');
+    
 });
 
 // escuchar el puerto
