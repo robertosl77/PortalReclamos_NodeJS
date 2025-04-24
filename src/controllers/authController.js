@@ -7,16 +7,21 @@ export async function loginHandler(req, res) {
 
   try {
     const isValid = await authLdapUser(floatingInput, floatingPassword);
-    // const isValid = true; // Simulación de autenticación LDAP
-
+    console.log('Usuario autenticado:', isValid);   
+    // const isValid=true;
     if (isValid) {
       return res.redirect('/reclamos.html');
     }
-
     res.status(401).send('Credenciales inválidas');
   } catch (err) {
-    console.log('Error al autenticar con LDAP:', err);
-    console.error('Error al autenticar con LDAP:', err);
-    res.status(500).send('Error interno en autenticación');
+    console.error('🛑 Error en login LDAP:', err.message);
+
+    // Si es un problema de red/infra, respondemos distinto
+    if (err.message.includes('conectar')) {
+      return res.status(503).send('No se pudo conectar al servidor de autenticación. Verificá tu conexión o contactá a soporte.');
+    }
+
+    // Error general
+    return res.status(500).send('Error interno en autenticación.');
   }
 }

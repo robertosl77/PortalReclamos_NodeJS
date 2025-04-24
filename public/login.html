@@ -169,12 +169,13 @@
             <h1 class="h3 mb-3 fw-normal">Portal Reclamos</h1>
 
             <div class="form-floating">
-                <input type="email" class="form-control" id="floatingInput" name="floatingInput" placeholder="name@example.com">
-                <label for="floatingInput">Email address</label>
+                <!-- <input type="email" class="form-control" id="floatingInput" name="floatingInput" placeholder="name@example.com"> -->
+                <input type="text" class="form-control" id="floatingInput" name="floatingInput" placeholder="Nombre de usuario">
+                <label for="floatingInput">Usuario</label>
             </div>
             <div class="form-floating">
                 <input type="password" class="form-control" id="floatingPassword" name="floatingPassword" placeholder="Password">
-                <label for="floatingPassword">Password</label>
+                <label for="floatingPassword">Contraseña</label>
             </div>
 
             <div class="form-check text-start my-3">
@@ -184,10 +185,51 @@
                 </label>
             </div>
             <button class="btn btn-primary w-100 py-2" type="submit">Ingresar</button>
+            <div id="errorMessage" class="alert alert-danger d-none mt-3" role="alert"></div>
             <p class="mt-5 mb-3 text-body-secondary">&copy; 2023–2025</p>
         </form>
     </main>
 
     <script defer src="../assets/dist/js/bootstrap.bundle.min.js" integrity="sha384-k6d4wzSIapyDyv1kpU366/PK5hCdSbCRGRCMv+eplOQJWyd1fbcAu9OCUj5zNLiq"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        const form = document.querySelector('form');
+        const errorDiv = document.getElementById('errorMessage');
+      
+        form.addEventListener('submit', async (event) => {
+          event.preventDefault(); // Evita que se envíe el form por defecto
+      
+          const formData = new FormData(form);
+          const floatingInput = formData.get('floatingInput');
+          const floatingPassword = formData.get('floatingPassword');
+      
+          try {
+            const response = await fetch('/api/login', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+              },
+              body: new URLSearchParams({
+                floatingInput,
+                floatingPassword
+              })
+            });
+      
+            if (response.redirected) {
+              // Si redirige, seguimos con esa URL (login exitoso)
+              window.location.href = response.url;
+            } else {
+              const errorText = await response.text();
+              errorDiv.textContent = errorText;
+              errorDiv.classList.remove('d-none');
+            }
+          } catch (err) {
+            // Error de red u otra cosa grave
+            errorDiv.textContent = 'No se pudo conectar al servidor. Verificá tu conexión.';
+            errorDiv.classList.remove('d-none');
+          }
+        });
+      });
+    </script>    
   </body>
 </html>
