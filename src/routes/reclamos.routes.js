@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { obtenerReclamos } from '../controllers/reclamosController.js';
+import { obtenerReclamosActivos } from '../controllers/reclamosController.js';
 
 const router = Router();
 
-router.get('/reclamos', obtenerReclamos);
+router.get('/reclamos', obtenerReclamosActivos);
 
 export default router;
