@@ -1,15 +1,17 @@
 import { Router } from 'express';
 import { 
+    buscarReclamos,
     obtenerReclamosActivos, 
     obtenerReclamosCerrados, 
     validaCuenta, 
-    datosCliente } from '../controllers/reclamosController.js';
+    buscaCliente } from '../controllers/reclamosController.js';
 
 const router = Router();
 
-router.get('/reclamos_activos/:cuenta', obtenerReclamosActivos);
-router.get('/reclamos_cerrados/:cuenta', obtenerReclamosCerrados);
-router.get('/valida_cuenta/:cuenta', validaCuenta);
-router.get('/datos_cliente/:cuenta', datosCliente);
+router.get('/buscarReclamos/:cuenta/:ahora', buscarReclamos);
+router.get('/obtenerReclamosActivos/:cuenta', obtenerReclamosActivos);
+router.get('/obtenerReclamosCerrados/:cuenta', obtenerReclamosCerrados);
+router.get('/validaCuenta/:cuenta', validaCuenta);
+router.get('/buscaCliente/:cuenta', buscaCliente);
 
 export default router;
