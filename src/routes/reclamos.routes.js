@@ -3,6 +3,6 @@ import { obtenerReclamosActivos } from '../controllers/reclamosController.js';
 
 const router = Router();
 
-router.get('/reclamos', obtenerReclamosActivos);
+router.get('/reclamos/:cuenta', obtenerReclamosActivos);
 
 export default router;

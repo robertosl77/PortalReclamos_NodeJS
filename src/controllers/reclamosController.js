@@ -1,6 +1,13 @@
 import { getConnection } from '../config/db.js';
 
 export async function obtenerReclamosActivos(req, res) {
+
+  const { cuenta } = req.params;
+
+  if (!cuenta) {
+    return res.status(400).json({ error: 'Debe especificar una cuenta' });
+  }
+
   try {
     const connection = await getConnection();
 
@@ -28,12 +35,13 @@ export async function obtenerReclamosActivos(req, res) {
           , NEXUS_GIS.OMS_DOCUMENT D
       WHERE 
           C.DOCUMENT_ID=D.ID(+)
-          AND C.PROPERTY_VALUE='8556214039' 
+          AND C.PROPERTY_VALUE=:cuenta
           AND C.TYPE_ID IN (102, 103)
           AND C.LAST_STATE_ID=1
       ORDER BY
           C.DOCUMENT_ID
-    `);
+    `, [cuenta] // ← parámetro seguro
+    );
 
     res.json(result.rows);
   } catch (err) {
