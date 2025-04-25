@@ -13,7 +13,8 @@
   "dependencies": {
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
-    "ldapjs": "^3.0.7"
+    "ldapjs": "^3.0.7",
+    "oracledb": "^6.8.0"
   },
   "type": "module",
   "devDependencies": {
