@@ -23,6 +23,11 @@ const gruposAutorizados = process.env.LDAP_GRUPOS_AUTORIZADOS
   : [];
   console.log(gruposAutorizados);
 
+if (!gruposAutorizados.length) {
+  console.error('❌ Error crítico: No hay grupos autorizados configurados en LDAP_GRUPOS_AUTORIZADOS.');
+  process.exit(1);
+}  
+
 export async function authenticateUser(username, password) {
   return new Promise((resolve, reject) => {
     console.info('🟦 Iniciando autenticación LDAP para usuario:', username);
