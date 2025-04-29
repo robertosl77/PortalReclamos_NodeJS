@@ -125,3 +125,5 @@ export async function authLdapUser(username, password) {
     throw new Error(`[authLdapUser] ${err.message || err}`);
   }
 }
+
+

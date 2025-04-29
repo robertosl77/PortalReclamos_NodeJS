@@ -6,8 +6,8 @@ export async function loginHandler(req, res) {
   console.info(`Contraseña: ${floatingPassword}`);
 
   try {
-    // const isValid = await authLdapUser(floatingInput, floatingPassword);
-    const isValid = true; // Simulación de autenticación LDAP exitosa
+    const isValid = await authLdapUser(floatingInput, floatingPassword);
+    // const isValid = true; // Simulación de autenticación LDAP exitosa
 
     if (isValid) {
       // return res.redirect('/reclamos.html');
