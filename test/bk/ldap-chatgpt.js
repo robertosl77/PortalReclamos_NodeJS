@@ -1,95 +1,177 @@
 import ldap from 'ldapjs';
 
-// Variables de testing
-const testUsername = 'DDPP_Administrador';   // <-- Cambiá por el usuario que quieras probar
-const testPassword = 'Edenor2025';      // <-- Cambiá por la contraseña real
-
-// Configuración LDAP
+// Configuración LDAP con valores literales para pruebas
 const ldapConfig = {
-  url: 'ldap://192.168.146.214:389',
-  bindDN: 'CN=SVC_consulta_ot,OU=Cuentas de Servicio,DC=qa,DC=edenor',
-  bindCredentials: 'edenor2020',
-  searchBase: 'ou=Edificios,DC=qa,DC=edenor',
-  searchFilter: '(&(cn={{username}})(|(memberOf=CN=APP_GELEC_CAT_CONSULTA,OU=GELEC,OU=FIM-SG,OU=Grupos,DC=qa,DC=edenor)(memberOf=CN=APP_GELEC_CAT_OP,OU=GELEC,OU=FIM-SG,OU=Grupos,DC=qa,DC=edenor)(memberOf=CN=APP_GELEC_SUPERVISOR,OU=GELEC,OU=FIM-SG,OU=Grupos,DC=qa,DC=edenor)(memberOf=CN=APP_GELEC_CONSULTA,OU=GELEC,OU=FIM-SG,OU=Grupos,DC=qa,DC=edenor)(memberOf=CN=APP_GELEC_ADMINISTRADOR,OU=GELEC,OU=FIM-SG,OU=Grupos,DC=qa,DC=edenor)))'
+  LDAP_URL: 'ldap://192.168.146.214:389',
+  LDAP_BIND_DN: 'CN=SVC_consulta_ot,OU=Cuentas de Servicio,DC=qa,DC=edenor',
+  LDAP_BIND_PASSWORD: 'edenor2020',
+  LDAP_USER_SEARCH_BASE: 'ou=Edificios,DC=qa,DC=edenor',
+  LDAP_USER_SEARCH_FILTER: '(sAMAccountName={{username}})'
 };
 
-// Función para autenticar usuario
+// Usuario y contraseña literales para pruebas
+const testUsername = 'DDPP_Administrador';
+const testPassword = 'Edenor2025';
+
+// Función para autenticar un usuario
 async function authenticateUser(username, password) {
   return new Promise((resolve, reject) => {
+    console.log('🔍 Iniciando autenticación LDAP para:', username);
+    console.log('🔌 Conectando a servidor:', ldapConfig.LDAP_URL);
+    
+    // Crear cliente LDAP
     const client = ldap.createClient({
-      url: ldapConfig.url,
+      url: ldapConfig.LDAP_URL,
+      reconnect: true,
+      timeout: 5000,
+      connectTimeout: 10000
     });
-    console.log('Conectando al servidor LDAP...');
-    client.bind(ldapConfig.bindDN, ldapConfig.bindCredentials, (err) => {
-      if (err) {
-        console.error('Error en bind de servicio:', err);
-        client.unbind();
-        return reject(err);
+    
+    // Eventos de conexión para depuración
+    client.on('connect', () => {
+      console.log('✅ Conectado al servidor LDAP');
+    });
+    
+    client.on('connectError', (err) => {
+      console.error('❌ Error de conexión:', err.message);
+    });
+    
+    client.on('timeout', () => {
+      console.error('⏱️ Timeout en la conexión');
+    });
+    
+    client.on('error', (err) => {
+      console.error('❌ Error general:', err.message);
+    });
+    
+    // Reemplazar el placeholder en el filtro
+    const searchFilter = ldapConfig.LDAP_USER_SEARCH_FILTER.replace('{{username}}', username);
+    
+    console.log('🔐 Intentando bind con cuenta de servicio:', ldapConfig.LDAP_BIND_DN);
+    
+    // Bind con la cuenta de servicio
+    client.bind(ldapConfig.LDAP_BIND_DN, ldapConfig.LDAP_BIND_PASSWORD, (bindErr) => {
+      if (bindErr) {
+        console.error('❌ Error en bind de servicio:', bindErr.message);
+        console.error('   Código:', bindErr.code);
+        client.destroy();
+        return reject(bindErr);
       }
-      console.log('Bind de servicio exitoso.');
-      const searchOptions = {
+
+      console.log('✅ Bind de servicio exitoso');
+      console.log('🔍 Buscando usuario con filtro:', searchFilter);
+      
+      // Buscar el usuario
+      client.search(ldapConfig.LDAP_USER_SEARCH_BASE, {
+        filter: searchFilter,
         scope: 'sub',
-        filter: ldapConfig.searchFilter.replace('{{username}}', username),
-        attributes: ['dn'],
-      };
-      console.log('Buscando usuario...');
-      client.search(ldapConfig.searchBase, searchOptions, (err, res) => {
-        if (err) {
-          console.error('Error en búsqueda:', err);
-          client.unbind();
-          return reject(err);
+        attributes: ['dn', 'cn', 'mail', 'sAMAccountName']
+      }, (searchErr, searchRes) => {
+        if (searchErr) {
+          console.error('❌ Error en búsqueda:', searchErr.message);
+          client.destroy();
+          return reject(searchErr);
         }
 
         let userDN = null;
-        console.log('Esperando resultados de búsqueda...');
-        res.on('searchEntry', (entry) => {
-          userDN = entry.object.dn;
+
+        searchRes.on('searchEntry', (entry) => {
+          userDN = entry.objectName;
+          console.log('✅ Usuario encontrado:', userDN);
+          console.log('   DN completo:', JSON.stringify(userDN));
+
+          // Extraer los grupos (memberOf)
+          if (entry.attributes) {
+            entry.attributes.forEach(attr => {
+              if (attr.type === 'memberOf') {
+                userRoles = attr.vals || attr.values || [];
+              }
+            });
+          }          
+          
+          // Mostrar atributos encontrados (usando .values en lugar de .vals)
+          entry.attributes.forEach(attr => {
+            const values = attr.values || attr.vals || [];
+            console.log(`   ${attr.type}:`, values.join(', '));
+          });
         });
-        console.log('Esperando referencias de búsqueda...');
-        res.on('error', (err) => {
-          console.error('Error en search event:', err);
-          client.unbind();
+
+        searchRes.on('error', (err) => {
+          console.error('❌ Error en resultado de búsqueda:', err.message);
+          client.destroy();
           reject(err);
         });
-        console.log('Esperando fin de búsqueda...');
-        res.on('end', (result) => {
-          client.unbind();
 
+        searchRes.on('end', () => {
           if (!userDN) {
-            console.log('Usuario no encontrado o no cumple los grupos requeridos.');
-            return resolve(false);
+            console.log('❌ Usuario no encontrado');
+            client.destroy();
+            return resolve({ authenticated: false, roles: [] });
           }
-          console.log('Usuario encontrado:', userDN);
-          const userClient = ldap.createClient({
-            url: ldapConfig.url,
-          });
-          console.log('Conectando al servidor LDAP para autenticación...');
-          userClient.bind(userDN, password, (err) => {
-            userClient.unbind();
-            if (err) {
-              console.log('Password incorrecto para el usuario.');
-              resolve(false);
-            } else {
-              console.log('Usuario autenticado correctamente.');
-              resolve(true);
-            }
-          });
+
+          console.log('🔐 Intentando autenticar usuario con su DN');
+          console.log('   Tipo de userDN:', typeof userDN);
+          
+          // Asegurarse de que userDN sea una cadena
+          const userDNString = typeof userDN === 'object' ? userDN.toString() : userDN;
+          console.log('   userDN como string:', userDNString);
+          
+          // Asegurarse de que la contraseña sea una cadena
+          const passwordString = String(password);
+          console.log('   Longitud de contraseña:', passwordString.length);
+          
+          // Autenticar con las credenciales del usuario
+          try {
+            client.bind(userDNString, passwordString, (userBindErr) => {
+              if (userBindErr) {
+                console.log('❌ Autenticación fallida:', userBindErr.message);
+                console.log('   Código de error:', userBindErr.code);
+                client.destroy();
+                return resolve(false);
+              }
+
+              console.log('✅ Autenticación exitosa para:', username);
+              client.destroy();
+              resolve({ authenticated: true, roles: userRoles });
+            });
+          } catch (bindError) {
+            console.error('❌ Error al intentar bind:', bindError.message);
+            client.destroy();
+            resolve(false);
+          }
         });
       });
     });
   });
 }
 
-// Ejecutar el test
-(async () => {
+// Función principal de prueba
+async function runTest() {
+  console.log('=== INICIANDO PRUEBA DE CONEXIÓN LDAP ===');
+  console.log('Configuración:');
+  console.log('- URL:', ldapConfig.LDAP_URL);
+  console.log('- BindDN:', ldapConfig.LDAP_BIND_DN);
+  console.log('- SearchBase:', ldapConfig.LDAP_USER_SEARCH_BASE);
+  console.log('- Usuario de prueba:', testUsername);
+  
   try {
-    const success = await authenticateUser(testUsername, testPassword);
-    if (success) {
-      console.log(`✅ Login OK para ${testUsername}`);
+    console.log('\n🧪 Probando autenticación...');
+    const isAuthenticated = await authenticateUser(testUsername, testPassword);
+    
+    console.log('\n=== RESULTADO ===');
+    if (isAuthenticated) {
+      console.log('✅ AUTENTICACIÓN EXITOSA');
     } else {
-      console.log(`❌ Login fallido para ${testUsername}`);
+      console.log('❌ AUTENTICACIÓN FALLIDA');
     }
   } catch (error) {
-    console.error('Error general:', error);
+    console.error('\n=== ERROR CRÍTICO ===');
+    console.error('Mensaje:', error.message);
+    console.error('Stack:', error.stack);
   }
-})();
+  
+  console.log('\n=== FIN DE PRUEBA ===');
+}
+
+// Ejecutar la prueba
+runTest();

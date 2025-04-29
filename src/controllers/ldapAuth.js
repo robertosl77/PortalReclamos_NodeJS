@@ -1,129 +1,84 @@
 import ldap from 'ldapjs';
-import dotenv from 'dotenv';
-dotenv.config();
 
-/**
- * Autentica un usuario contra un servidor LDAP.
- * 1. Conexión al servidor
- * 2. Bind técnico (cuenta de servicio)
- * 3. Búsqueda del usuario
- * 4. Bind del usuario con su password
- */
+export async function authenticateUser(username, password) {
+  return new Promise((resolve, reject) => {
+    let userRoles = [
+      "CN=APP_GELEC_ADMINISTRADOR,OU=GELEC,OU=FIM-SG,OU=Grupos,DC=qa,DC=edenor",
+      "CN=APP_GELEC_CAT_CONSULTA,OU=GELEC,OU=FIM-SG,OU=Grupos,DC=qa,DC=edenor",
+      "CN=APP_GELEC_CAT_OP,OU=GELEC,OU=FIM-SG,OU=Grupos,DC=qa,DC=edenor",
+      "CN=APP_GELEC_SUPERVISOR,OU=GELEC,OU=FIM-SG,OU=Grupos,DC=qa,DC=edenor",
+      "CN=APP_GELEC_CONSULTA,OU=GELEC,OU=FIM-SG,OU=Grupos,DC=qa,DC=edenor",
+      "CN=APP_GELEC_ADMINISTRADOR,OU=GELEC,OU=FIM-SG,OU=Grupos,DC=qa,DC=edenor"
+    ];
 
-export async function authLdapUser(username, password) {
-  let client;
+    const ldapConfig = {
+      LDAP_URL: process.env.LDAP_URL,
+      LDAP_BIND_DN: process.env.LDAP_BIND_DN,
+      LDAP_BIND_PASSWORD: process.env.LDAP_BIND_PASSWORD,
+      LDAP_USER_SEARCH_BASE: process.env.LDAP_USER_SEARCH_BASE,
+      LDAP_USER_SEARCH_FILTER: process.env.LDAP_USER_SEARCH_FILTER
+    };    
 
-  try {
-    console.info('1) Conectando a LDAP...');
-    client = ldap.createClient({
-      url: process.env.LDAP_URL,
+    const client = ldap.createClient({
+      url: ldapConfig.LDAP_URL,
+      reconnect: true,
       timeout: 5000,
-      connectTimeout: 5000,
+      connectTimeout: 10000
     });
 
-    // 💡 En lugar de throw directo, usamos una Promise que rechaza
-    console.info('2) Conectando al servidor LDAP...');
-    await new Promise((resolve, reject) => {
-      client.on('error', (err) => {
-        console.error('❌ Error de conexión LDAP:', err.message);
-        reject(new Error('No se pudo conectar al servidor de autenticación.'));
-      });
+    client.bind(ldapConfig.LDAP_BIND_DN, ldapConfig.LDAP_BIND_PASSWORD, (bindErr) => {
+      if (bindErr) {
+        client.destroy();
+        return reject(bindErr);
+      }
 
-      // Probamos conectar haciendo el bind técnico
-      client.bind(process.env.LDAP_BIND_DN, process.env.LDAP_BIND_PASSWORD, (err) => {
-        if (err) {
-          reject(new Error('Bind técnico falló: ' + err.message));
-        } else {
-          resolve();
+      const searchFilter = ldapConfig.LDAP_USER_SEARCH_FILTER.replace('{{username}}', username);
+
+      client.search(ldapConfig.LDAP_USER_SEARCH_BASE, {
+        filter: searchFilter,
+        scope: 'sub',
+        attributes: ['dn', 'cn', 'mail', 'sAMAccountName', 'memberOf'] // <<< PEDIR memberOf
+      }, (searchErr, searchRes) => {
+        if (searchErr) {
+          client.destroy();
+          return reject(searchErr);
         }
-      });
-    });
 
-    // 🔍 Búsqueda del usuario
-    console.info('3) Buscando usuario en LDAP...');
-    const searchOptions = {
-      scope: 'sub',
-      filter: process.env.LDAP_USER_FILTER.replace('{0}', username),
-      attributes: ['dn', 'cn', 'mail'],
+        let userDN = null;
 
-      /**
+        searchRes.on('searchEntry', (entry) => {
+          userDN = entry.objectName;
 
-      * Scopes: 
-        * - base: solo el objeto base (el que se busca) 
-        * - one: solo los hijos directos del objeto base (no busca en subárboles)
-        * - sub: busca en el objeto base y en todos sus descendientes (subárboles)
-
-        * Filter:
-        * - (objectClass=*) → todos los objetos del directorio
-        * - (objectClass=user) → solo los objetos de tipo usuario
-        * - (objectClass=group) → solo los objetos de tipo grupo
-        * - (objectClass=organizationalUnit) → solo los objetos de tipo unidad organizativa
-
-      * Lista de Atributos que se pueden pedir al LDAP:
-
-            attributes: [
-                'dn',                   // Distinguished Name completo del objeto (identificador absoluto)
-                'cn',                   // Common Name (nombre del usuario o grupo)
-                'sAMAccountName',       // Nombre de cuenta (usado en login en AD)
-                'userPrincipalName',    // Nombre principal de usuario (como un email)
-                'mail',                 // Correo electrónico
-                'givenName',            // Nombre de pila (nombre)
-                'sn',                   // Apellido (surname)
-                'displayName',          // Nombre para mostrar (generalmente nombre completo)
-                'memberOf',             // Lista de grupos a los que pertenece el usuario
-                'telephoneNumber',      // Número de teléfono
-                'title',                // Cargo del usuario
-                'department',           // Departamento
-                'company',              // Empresa
-                'whenCreated',          // Fecha de creación del objeto en el directorio
-                'lastLogonTimestamp',   // Último login (solo en AD)
-            ]
-
-        * Comodin para traer todos los atributos: 
-
-            attributes: ['*']
-
-      */
-    };
-
-    console.info('4) Buscando usuario en LDAP...');
-    const userDn = await new Promise((resolve, reject) => {
-      let found = null;
-
-      client.search(process.env.LDAP_USER_BASE, searchOptions, (err, res) => {
-        if (err) return reject(new Error('Error en búsqueda LDAP: ' + err.message));
-
-        res.on('searchEntry', (entry) => {
-          found = entry.dn?.toString();
+          if (entry.attributes) {
+            entry.attributes.forEach(attr => {
+              if (attr.type === 'memberOf') {
+                userRoles = attr.vals || attr.values || [];
+              }
+            });
+          }
         });
 
-        res.on('end', () => {
-          if (!found) reject(new Error('Usuario no encontrado'));
-          else resolve(found);
+        searchRes.on('error', (err) => {
+          client.destroy();
+          reject(err);
+        });
+
+        searchRes.on('end', () => {
+          if (!userDN) {
+            client.destroy();
+            return resolve({ authenticated: false, roles: [] });
+          }
+
+          client.bind(typeof userDN === 'object' ? userDN.toString() : userDN, String(password), (userBindErr) => {
+            client.destroy();
+            if (userBindErr) {
+              return resolve({ authenticated: false, roles: [] });
+            }
+
+            return resolve({ authenticated: true, roles: userRoles }); // <<< DEVOLVEMOS ROLES
+          });
         });
       });
     });
-
-    // 🔑 Bind con las credenciales del usuario
-    console.info('5) Autenticando usuario...');
-    await new Promise((resolve, reject) => {
-      client.bind(userDn, password, (err) => {
-        if (err) reject(new Error('Credenciales inválidas'));
-        else resolve();
-      });
-    });
-
-    console.info('6) Usuario autenticado correctamente!');
-    client.unbind();
-
-    return true;
-
-  } catch (err) {
-    console.info('7) Error en autenticación LDAP:', err.message);
-    if (client) client.unbind(); // siempre cerramos
-    // return false;
-    throw new Error(`[authLdapUser] ${err.message || err}`);
-  }
+  });
 }
-
-

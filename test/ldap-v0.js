@@ -2,11 +2,11 @@ import ldap from 'ldapjs';
 
 // Configuración LDAP con valores literales para pruebas
 const ldapConfig = {
-  url: 'ldap://192.168.146.214:389',
-  bindDN: 'CN=SVC_consulta_ot,OU=Cuentas de Servicio,DC=qa,DC=edenor',
-  bindCredentials: 'edenor2020',
-  searchBase: 'ou=Edificios,DC=qa,DC=edenor',
-  searchFilter: '(sAMAccountName={{username}})'
+  LDAP_URL: 'ldap://192.168.146.214:389',
+  LDAP_BIND_DN: 'CN=SVC_consulta_ot,OU=Cuentas de Servicio,DC=qa,DC=edenor',
+  LDAP_BIND_PASSWORD: 'edenor2020',
+  LDAP_USER_SEARCH_BASE: 'ou=Edificios,DC=qa,DC=edenor',
+  LDAP_USER_SEARCH_FILTER: '(sAMAccountName={{username}})'
 };
 
 // Usuario y contraseña literales para pruebas
@@ -17,11 +17,11 @@ const testPassword = 'Edenor2025';
 async function authenticateUser(username, password) {
   return new Promise((resolve, reject) => {
     console.log('🔍 Iniciando autenticación LDAP para:', username);
-    console.log('🔌 Conectando a servidor:', ldapConfig.url);
+    console.log('🔌 Conectando a servidor:', ldapConfig.LDAP_URL);
     
     // Crear cliente LDAP
     const client = ldap.createClient({
-      url: ldapConfig.url,
+      url: ldapConfig.LDAP_URL,
       reconnect: true,
       timeout: 5000,
       connectTimeout: 10000
@@ -45,12 +45,12 @@ async function authenticateUser(username, password) {
     });
     
     // Reemplazar el placeholder en el filtro
-    const searchFilter = ldapConfig.searchFilter.replace('{{username}}', username);
+    const searchFilter = ldapConfig.LDAP_USER_SEARCH_FILTER.replace('{{username}}', username);
     
-    console.log('🔐 Intentando bind con cuenta de servicio:', ldapConfig.bindDN);
+    console.log('🔐 Intentando bind con cuenta de servicio:', ldapConfig.LDAP_BIND_DN);
     
     // Bind con la cuenta de servicio
-    client.bind(ldapConfig.bindDN, ldapConfig.bindCredentials, (bindErr) => {
+    client.bind(ldapConfig.LDAP_BIND_DN, ldapConfig.LDAP_BIND_PASSWORD, (bindErr) => {
       if (bindErr) {
         console.error('❌ Error en bind de servicio:', bindErr.message);
         console.error('   Código:', bindErr.code);
@@ -62,7 +62,7 @@ async function authenticateUser(username, password) {
       console.log('🔍 Buscando usuario con filtro:', searchFilter);
       
       // Buscar el usuario
-      client.search(ldapConfig.searchBase, {
+      client.search(ldapConfig.LDAP_USER_SEARCH_BASE, {
         filter: searchFilter,
         scope: 'sub',
         attributes: ['dn', 'cn', 'mail', 'sAMAccountName']
@@ -140,9 +140,9 @@ async function authenticateUser(username, password) {
 async function runTest() {
   console.log('=== INICIANDO PRUEBA DE CONEXIÓN LDAP ===');
   console.log('Configuración:');
-  console.log('- URL:', ldapConfig.url);
-  console.log('- BindDN:', ldapConfig.bindDN);
-  console.log('- SearchBase:', ldapConfig.searchBase);
+  console.log('- URL:', ldapConfig.LDAP_URL);
+  console.log('- BindDN:', ldapConfig.LDAP_BIND_DN);
+  console.log('- SearchBase:', ldapConfig.LDAP_USER_SEARCH_BASE);
   console.log('- Usuario de prueba:', testUsername);
   
   try {
