@@ -18,13 +18,10 @@ const ldapConfig = {
   LDAP_USER_SEARCH_FILTER: process.env.LDAP_USER_SEARCH_FILTER
 };
 
-const gruposAutorizados = [
-  "CN=APP_GELEC_ADMINISTRADOR,OU=GELEC,OU=FIM-SG,OU=Grupos,DC=qa,DC=edenor",
-  "CN=APP_GELEC_CAT_CONSULTA,OU=GELEC,OU=FIM-SG,OU=Grupos,DC=qa,DC=edenor",
-  "CN=APP_GELEC_CAT_OP,OU=GELEC,OU=FIM-SG,OU=Grupos,DC=qa,DC=edenor",
-  "CN=APP_GELEC_SUPERVISOR,OU=GELEC,OU=FIM-SG,OU=Grupos,DC=qa,DC=edenor",
-  "CN=APP_GELEC_CONSULTA,OU=GELEC,OU=FIM-SG,OU=Grupos,DC=qa,DC=edenor"
-];
+const gruposAutorizados = process.env.LDAP_GRUPOS_AUTORIZADOS
+  ? process.env.LDAP_GRUPOS_AUTORIZADOS.split(';').map(s => s.trim())
+  : [];
+  console.log(gruposAutorizados);
 
 export async function authenticateUser(username, password) {
   return new Promise((resolve, reject) => {
