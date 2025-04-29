@@ -1,6 +1,15 @@
 import ldap from 'ldapjs';
 import 'dotenv/config';
 
+function normalizeRoles(rolesLdap) {
+  if (!Array.isArray(rolesLdap)) return [];
+
+  return rolesLdap.map(role => {
+    const match = role.match(/^CN=([^,]+),/);
+    return match ? match[1] : role;
+  });
+}
+
 const ldapConfig = {
   LDAP_URL: process.env.LDAP_URL,
   LDAP_BIND_DN: process.env.LDAP_BIND_DN,
@@ -98,7 +107,9 @@ export async function authenticateUser(username, password) {
 
             if (userRoles.length > 0) {
               console.info('✅ Usuario pertenece a al menos un grupo autorizado.');
-              return resolve({ authenticated: true, roles: userRoles });
+              const rolesNormalizados = normalizeRoles(userRoles);
+
+              return resolve({ authenticated: true, roles: rolesNormalizados });
             } else {
               console.warn('🚫 Usuario autenticado pero NO pertenece a ningún grupo autorizado.');
               return resolve({ authenticated: false, roles: [] });
