@@ -13,6 +13,15 @@ export async function loginHandler(req, res) {
 
       // (Opcional) Podrías guardar roles en sessionStorage / JWT / lo que quieras
 
+      // Sesion guardada
+      req.session.usuario = {
+        username: floatingInput,
+        roles: result.roles,
+        loginTime: new Date().toISOString(),
+        ip: req.ip,
+        userAgent: req.get('User-Agent')
+      };
+
       return res.redirect('/PortalReclamos/reclamos.html');
     }
 

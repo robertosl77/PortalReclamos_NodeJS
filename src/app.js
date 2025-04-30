@@ -5,6 +5,7 @@ import session from 'express-session';
 
 const app = express();
 
+// Middleware para manejo de sesiones (simil springboot)
 app.use(session({
   secret: 'clave_secreta_segura', // ⚠️ poné algo más seguro en producción
   resave: false,  // false: si no hay cambios en la sesion no vuelve a guardar en memoria, redis, etc. 
