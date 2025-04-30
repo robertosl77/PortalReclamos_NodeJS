@@ -1,4 +1,4 @@
-import { authenticateUser } from './ldapAuth.js';
+import { authenticateUser } from '../servicios/ldapAuth.js';
 
 export async function loginHandler(req, res) {
   const { floatingInput, floatingPassword } = req.body;
